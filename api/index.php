@@ -91,13 +91,13 @@ function getLogs() {
 
   $stationsNames = getStations();
 
-  $rq = $pdo->prepare('SELECT * FROM libelo_updates ORDER BY time DESC');
+  $rq = $pdo->prepare('SELECT * FROM libelo_updates ORDER BY id DESC');
   $rq->execute();
   $datas = $rq->fetchAll(PDO::FETCH_UNIQUE);
 
   $logs = [];
   foreach ($datas as $dID => $data) {
-    $rqHist = $pdo->prepare('SELECT * FROM libelo_updates WHERE station = ? AND id != ? ORDER BY time DESC');
+    $rqHist = $pdo->prepare('SELECT * FROM libelo_updates WHERE station = ? AND id < ? ORDER BY id DESC');
     $rqHist->execute([ $data['station'], $dID ]);
     $histData = $rqHist->fetch();
 
@@ -107,6 +107,8 @@ function getLogs() {
 
     $eDiff = $data['eBikes'] - $histData['eBikes'];
     $mDiff = $data['mBikes'] - $histData['mBikes'];
+
+    $data['time'] = (new DateTime($data['time']))->format('Y-m-d H:i');
 
     if ($eDiff !== 0) array_push($logs, [
       'sID'   => $data['station'],
