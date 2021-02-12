@@ -78,4 +78,58 @@ rq('/lastFetch', function() {
   exit($lastFetch);
 });
 
+function getLogs() {
+  global $pdo;
+
+  $stationsNames = getStations();
+
+  $rq = $pdo->prepare('SELECT * FROM libelo_updates ORDER BY time DESC');
+  $rq->execute();
+  $datas = $rq->fetchAll(PDO::FETCH_UNIQUE);
+
+  $logs = [];
+  foreach ($datas as $dID => $data) {
+    $rqHist = $pdo->prepare('SELECT * FROM libelo_updates WHERE station = ? AND id != ? ORDER BY time DESC');
+    $rqHist->execute([ $data['station'], $dID ]);
+    $histData = $rqHist->fetch();
+
+    if (!$histData) continue;
+
+    $sName = $stationsNames[$data['station']]['name'];
+
+    $eDiff = $data['eBikes'] - $histData['eBikes'];
+    $mDiff = $data['mBikes'] - $histData['mBikes'];
+
+    if ($eDiff !== 0) array_push($logs, [
+      'sID'   => $data['station'],
+      'sName' => $sName,
+      'time'  => $data['time'],
+      'type'  => 'E',
+      'diff'  => $eDiff,
+      'fDiff' => ($eDiff > 0 ? "+$eDiff" : $eDiff),
+    ]);
+
+    if ($mDiff !== 0) array_push($logs, [
+      'sID'   => $data['station'],
+      'sName' => $sName,
+      'time'  => $data['time'],
+      'type'  => 'M',
+      'diff'  => $mDiff,
+      'fDiff' => ($mDiff > 0 ? "+$mDiff" : $mDiff),
+    ]);
+  }
+
+  return $logs;
+}
+
+rq('getLogs', function() {
+  return getLogs();
+});
+
+rq('getLogs/text', function() {
+  foreach (getLogs() as $log) {
+    echo '['.$log['time']."]: ".$log['fDiff']." [".$log['type']."] at ".$log['sName']." (".$log['sID'].")\n";
+  }
+});
+
 ?>
