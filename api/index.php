@@ -1,7 +1,7 @@
 <?php
 $_CONFIG = [
   'zone' => 46, // InstantSystem zone ID (46 is Valence)
-  'interval' => 3, // Minimum interval (in seconds) between two autofetches
+  'interval' => 30, // Minimum interval (in seconds) between two autofetches
   'timeZoneCorrect' => 'PT1H', // Timezone correction (if the PHP server isn't in the same zone as you)
 ];
 
@@ -12,11 +12,12 @@ header('Access-Control-Allow-Origin: *');
 header('Content-Type: application/json; charset=utf-8');
 ini_set('serialize_precision', 14);
 
+if ($_SERVER['REQUEST_URI'] === '/') header('Location: https://github.com/Mathieu2301/Velib-Tracker/');
+
 function rs($rs) {
   if ($rs) exit(json_encode($rs));
   else exit();
 }
-
 function rq($rq, $cb) {
   $uri = trim(explode('?', $_SERVER['REQUEST_URI'])[0], '/');
   if (trim($rq, '/') === $uri) rs($cb());
@@ -68,7 +69,14 @@ rq('/getStations', function() {
   return getStations();
 });
 
-rq('/autoFetch', function() {
+rq('/getFullData', function() {
+  global $pdo;
+  $rq = $pdo->prepare('SELECT * FROM libelo_updates ORDER BY time DESC');
+  $rq->execute();
+  return $rq->fetchAll(PDO::FETCH_UNIQUE);
+});
+
+rq('/autoFetch', function() { // Cron task
   global $fetchedIDs;
   return [ 'fetchedIDs' => $fetchedIDs ];
 });
