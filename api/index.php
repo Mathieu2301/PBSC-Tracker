@@ -44,12 +44,12 @@ if (!$lastFetch || $fTimestamp - $lastFetch > $_CONFIG['interval']) {
     } else $needUpdate = true;
 
     if ($needUpdate) {
-      $rq = $pdo->prepare('INSERT INTO libelo_updates (station, bikes, eBikes, mechanichalBikes, stands, status, time) VALUES (?, ?, ?, ?, ?, ?, ?)');
+      $rq = $pdo->prepare('INSERT INTO libelo_updates (station, bikes, eBikes, mBikes, stands, status, time) VALUES (?, ?, ?, ?, ?, ?, ?)');
       $rq->execute([
         $sID,
         $fStation['bikes'],
         $fStation['eBikes'],
-        $fStation['mechanichalBikes'],
+        $fStation['mBikes'],
         $fStation['stands'],
         $fStation['status'],
         $fTime,

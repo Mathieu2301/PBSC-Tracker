@@ -34,7 +34,7 @@ function getBikes() {
       'bikeStands' => $s['bikeStands'],
       'bikes' => $s['bikes'],
       'eBikes' => $s['eBikes'],
-      'mechanichalBikes' => $s['mechanichalBikes'],
+      'mBikes' => $s['mechanichalBikes'],
       'stands' => $s['stands'],
     ];
   }
