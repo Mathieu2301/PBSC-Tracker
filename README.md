@@ -27,5 +27,5 @@ Vous pouvez consulter :
  - Les données en brut : [/getFullData](https://libelostats.usp-3.fr/getFullData)
  - L'historique des actions : [/getLogs/text](https://libelostats.usp-3.fr/getLogs/text) (Texte) ou [/getLogs](https://libelostats.usp-3.fr/getLogs) (JSON)
 
-L'API PHP est hébergée sur [libelostats.usp-3.fr](https://libelostats.usp-3.fr/) et fonctionne avec le système Libélo de Valence.
+L'API PHP est hébergée sur [libelostats.usp-3.fr](https://libelostats.usp-3.fr/) et fonctionne avec le système [Libélo](https://www.vrd-mobilites.fr/velo/) de Valence.
 La partie "Auto fetch" est automatiquement exécutée 1 fois toutes les 60 secondes pour assurer le suivi et donc la qualité des données.
