@@ -15,6 +15,16 @@ const icon = L.icon({
   popupAnchor: [0, -12], // point from which the popup should open relative to the iconAnchor
 });
 
+function distBetween(s1, s2) {
+  return Math.acos(
+    Math.sin(s1.lat * (Math.PI / 180))
+    * Math.sin(s2.lat * (Math.PI / 180))
+    + Math.cos(s1.lat * (Math.PI / 180))
+    * Math.cos(s2.lat * (Math.PI / 180))
+    * Math.cos((s1.lon - s2.lon) * (Math.PI / 180)),
+  ) * 6371000;
+}
+
 export default {
   name: 'Map',
   props: {
@@ -39,7 +49,7 @@ export default {
         const s = this.stations[i];
         this.stationList[i] = {
           marker: L.marker(
-            L.latLng(parseFloat(s.lat), parseFloat(s.lon)),
+            [s.lat, s.lon],
             { icon },
           ).addTo(this.map),
         };
@@ -51,9 +61,9 @@ export default {
       Object.keys(this.areas).forEach((i) => {
         const time = i.split('_')[1];
         const a = this.areas[i];
-        const distance = window.config.distanceCalc(new Date(time).getTime(), this.nowTime);
+        const traveled = window.config.distanceCalc(new Date(time).getTime(), this.nowTime);
 
-        if (distance > 0 && distance <= window.config.maxDistance) a.setRadius(distance);
+        if (traveled > 0 && traveled <= window.config.maxDistance) a.setRadius(traveled);
         else {
           a.remove();
           delete this.areas[i];
@@ -61,25 +71,100 @@ export default {
       });
 
       this.logs.forEach((log) => {
-        const distance = window.config.distanceCalc(new Date(log.time).getTime(), this.nowTime);
-        if (distance > window.config.maxDistance) return;
+        const dockTimestamp = new Date(log.time).getTime();
+        const dockTraveled = window.config.distanceCalc(dockTimestamp, this.nowTime);
 
         const s = this.stations[log.sID];
         const logUID = `${log.sID}_${log.time}`;
 
-        if (log.diff < 0) {
+        if (log.diff < 0 && dockTraveled <= window.config.maxDistance) {
           if (!this.areas[logUID]) {
             this.areas[logUID] = L.circle(
-              L.latLng(parseFloat(s.lat), parseFloat(s.lon)), {
+              [s.lat, s.lon], {
                 color: (log.type === 'E' ? '#0080ff' : '#8d00c9'),
                 fillColor: '#f030000',
                 fillOpacity: 0.1,
-                radius: distance,
+                radius: dockTraveled,
               },
             ).addTo(this.map);
           }
-        } else if (!this.lines[logUID]) {
-          this.lines[logUID] = true;
+        } else if (log.diff > 0 && !this.lines[logUID]) {
+          const paths = [];
+          this.logs.forEach((startLog) => {
+            const startTimestamp = new Date(startLog.time).getTime();
+            const timeDistance = window.config.distanceCalc(startTimestamp, dockTimestamp);
+
+            if (
+              startLog.diff > 0
+              || startTimestamp > dockTimestamp
+              || timeDistance > window.config.maxDistance
+              || startLog.type !== log.type
+            ) return;
+
+            const startS = this.stations[startLog.sID];
+            const realDistance = distBetween(startS, s);
+
+            const prob = Math.round((1 - (
+              (Math.abs(timeDistance - realDistance) / Math.max(timeDistance, realDistance))
+              * ((Math.abs(timeDistance - realDistance) ** 1.1) / (realDistance + 1))
+            )) * 10 ** 4) / (10 ** 4);
+
+            if (prob < window.config.minProb) return;
+
+            const speed = Math.round(
+              (realDistance * 36) / ((dockTimestamp - startTimestamp) / 1000),
+            ) / 10;
+
+            paths.push({
+              startSID: startLog.sID,
+              startS: startLog.sName,
+              startTime: startLog.time,
+              startPos: [startS.lat, startS.lon],
+              dockS: log.sName,
+              dockTime: log.time,
+              timeDistance,
+              realDistance,
+              dockTimestamp,
+              startTimestamp,
+              diff: dockTimestamp - startTimestamp,
+              speed,
+              prob,
+            });
+          });
+
+          console.log(
+            'Paths for', logUID,
+            '=>', paths.sort((a, b) => (a.prob < b.prob ? 1 : -1)),
+          );
+
+          if (paths.length === 0) {
+            this.lines[logUID] = 'bypass';
+            return;
+          }
+
+          paths.sort((a, b) => (a.prob < b.prob ? 1 : -1)).forEach((path, i) => {
+            if (i + 1 > window.config.maxResults) return;
+            const opacity = Math.round(
+              (path.prob - window.config.minProb) * (255 / (1 - window.config.minProb)),
+            ).toString(16);
+
+            this.lines[logUID] = L.polyline(
+              [
+                path.startPos,
+                [s.lat, s.lon],
+              ], {
+                color: (log.type === 'E' ? `#0080ff${opacity}` : `#8d00c9${opacity}`),
+                weight: 3,
+              },
+            ).addTo(this.map);
+
+            this.lines[logUID].bindPopup(`
+              From: ${path.startS} (${path.startTime.split(' ')[1]})<br>
+              To: ${path.dockS} (${path.dockTime.split(' ')[1]})<br>
+              Speed: ${path.speed} km/h<br>
+              Prob: ${path.prob * 100} %<br>
+            `);
+          });
         }
       });
     },

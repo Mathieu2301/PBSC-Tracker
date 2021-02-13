@@ -10,6 +10,8 @@ window.config = {
 
   distanceCalc: (time, start) => Math.round(((start - time) / 1000) * (250 / 60)),
   maxDistance: 6000,
+  minProb: 0.6,
+  maxResults: 1,
 };
 
 createApp(app).mount('#app');
