@@ -2,7 +2,9 @@
   <div>
     <mapEl :logs="logs" :stations="stations" :nowTime="nowTime"/>
     <sideBar :logs="logs" :nowTime="nowTime"/>
-    <input class="timeSlide" type="range" min="-120" max="0" v-model="timeControl">
+    <div class="bottomFixed">
+      <input class="timeSlide" type="range" min="-120" max="0" v-model="timeControl">
+    </div>
   </div>
 </template>
 
@@ -68,21 +70,29 @@ body * {
   user-select: none;
 }
 
+.bottomFixed {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  z-index: 500;
+  width: 100%;
+  height: 20px;
+  background-color: #d3d3d3;
+}
+
 .timeSlide {
   position: fixed;
   left: 0;
   bottom: 0;
   z-index: 500;
-  width: calc(100% - 400px);
+  width: 100%;
 
   -webkit-appearance: none;
   height: 15px;
   border-radius: 5px;
-  background: #d3d3d3;
+  background-color: #d3d3d3;
   outline: none;
-  opacity: 0.7;
-  -webkit-transition: .2s;
-  transition: opacity .2s;
+  opacity: 0.8;
 }
 
 .timeSlide::-webkit-slider-thumb {
@@ -90,7 +100,7 @@ body * {
   appearance: none;
   width: 15px;
   height: 15px;
-  border-radius: 50%;
+  border-radius: 35%;
   background: #4CAF50;
   cursor: pointer;
 }

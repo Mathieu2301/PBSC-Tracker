@@ -110,22 +110,22 @@ function getLogs() {
 
     $data['time'] = (new DateTime($data['time']))->format('Y-m-d H:i');
 
-    if ($eDiff !== 0) array_push($logs, [
+    for ($i = 0; $i < abs($eDiff); $i++) array_push($logs, [
       'sID'   => $data['station'],
       'sName' => $sName,
       'time'  => $data['time'],
       'type'  => 'E',
       'diff'  => $eDiff,
-      'fDiff' => ($eDiff > 0 ? "+$eDiff" : $eDiff),
+      'fDiff' => ($eDiff > 0 ? '+' : '-'),
     ]);
 
-    if ($mDiff !== 0) array_push($logs, [
+    for ($i = 0; $i < abs($mDiff); $i++) array_push($logs, [
       'sID'   => $data['station'],
       'sName' => $sName,
       'time'  => $data['time'],
       'type'  => 'M',
       'diff'  => $mDiff,
-      'fDiff' => ($mDiff > 0 ? "+$mDiff" : $mDiff),
+      'fDiff' => ($mDiff > 0 ? '+' : '-'),
     ]);
   }
 
