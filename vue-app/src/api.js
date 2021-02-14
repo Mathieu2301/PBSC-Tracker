@@ -2,11 +2,18 @@ import $ from './request';
 
 let handler = () => {};
 
+let lastID = 0;
+
 async function fetch() {
-  handler(await $('getLogs'));
+  const newLastID = await $('lastFetch').lastID;
+  if (newLastID !== lastID) {
+    handler(await $('getLogs'));
+    console.log('Handle');
+    lastID = newLastID;
+  }
 }
 
-setInterval(fetch, 10000);
+setInterval(fetch, 1000);
 
 export default {
   fetch,

@@ -7,21 +7,29 @@
       </div>
       <div class="topTitle">{{ getHour() }}</div>
       <div class="container">
-        <div class="log" v-for="(log, i) in logs" :key="i">
-          <div class="left">
-            <div>{{ log.sName }}</div>
-            <div class="small">{{ log.time }}</div>
+        <div class="start"
+          v-for="(start, UID) in starts" :key="UID"
+          :class="{ selected: selectedStart === UID }"
+          @click="selectStart(UID)">
+          <div class="visible">
+            <div class="left">
+              <div>{{ start.sName }}</div>
+              <div class="small">{{ start.time }}</div>
+            </div>
+            <div class="column small">
+              <div>{{ calcDistance(start.time) }}</div>
+              <div v-if="!isArrived(start.time)">{{ calcTime(start.time) }} s</div>
+            </div>
+            <div class="column">
+              <svg viewBox="0 0 100 100" :fill="start.type === 'E' ? '#0080ff' : '#8d00c9'">
+                <!-- eslint-disable-next-line -->
+                <path d="M50,21c15.99,0,29,13.009,29,29c0,15.99-13.01,29-29,29c-15.991,0-29-13.01-29-29C21,34.009,34.009,21,50,21 M50,5C25.147,5,5,25.147,5,50c0,24.853,20.147,45,45,45c24.853,0,45-20.147,45-45C95,25.147,74.853,5,50,5L50,5z"/>
+                <circle v-if="start.probEnd > 0.5" cx="50" cy="50" r="15"/>
+              </svg>
+            </div>
           </div>
-          <div class="middled small" v-if="log.diff < 0">
-            <div>{{ calcDistance(log.time) }}</div>
-            <div v-if="!isArrived(log.time)">{{ calcTime(log.time) }} s</div>
-          </div>
-          <div class="middled">
-            <svg viewBox="0 0 100 100" :fill="log.type === 'E' ? '#0080ff' : '#8d00c9'">
-              <!-- eslint-disable-next-line -->
-              <path d="M50,21c15.99,0,29,13.009,29,29c0,15.99-13.01,29-29,29c-15.991,0-29-13.01-29-29C21,34.009,34.009,21,50,21 M50,5C25.147,5,5,25.147,5,50c0,24.853,20.147,45,45,45c24.853,0,45-20.147,45-45C95,25.147,74.853,5,50,5L50,5z"/>
-              <circle v-if="log.diff > 0" cx="50" cy="50" r="15"/>
-            </svg>
+          <div class="drop" :class="{ open: selectedStart === UID }">
+            Test
           </div>
         </div>
       </div>
@@ -30,20 +38,44 @@
 </template>
 
 <script>
-const addZeros = (i) => (parseInt(i, 10) < 10 ? `0${i}` : i);
-
 export default {
   name: 'Sidebar',
   props: {
     logs: Object,
+    stations: Object,
     nowTime: Number,
   },
 
   data: () => ({
     hideSidebar: true,
+    selectedStart: '',
+    starts: {},
   }),
 
+  watch: {
+    logs() {
+      this.logs.filter((l) => l.diff < 0).forEach((l) => {
+        if (!this.starts[l.UID]) {
+          this.starts[l.UID] = {
+            sName: this.stations[l.sID].name,
+            time: l.time,
+            type: l.type,
+          };
+          return;
+        }
+
+        this.logs.filter((d) => d.diff > 0).forEach(() => {
+          this.starts[l.UID].probEnd = Math.random();
+        });
+      });
+    },
+  },
+
   methods: {
+    selectStart(UID) {
+      this.selectedStart = (this.selectedStart !== UID) ? UID : '';
+    },
+
     calcDistance(time) {
       const value = window.config.distanceCalc(new Date(time).getTime(), this.nowTime);
       return (value < window.config.maxDistance ? `${value} m` : 'Arrived');
@@ -56,12 +88,14 @@ export default {
 
     calcTime(time) {
       const sec = Math.round((this.nowTime - new Date(time).getTime()) / 1000);
-      return `${Math.floor(sec / 60)}:${addZeros(sec % 60)}`;
+      return `${Math.floor(sec / 60)}:${window.addZeros(sec % 60)}`;
     },
 
     getHour() {
       const date = new Date(this.nowTime);
-      return `${addZeros(date.getHours())}:${addZeros(date.getMinutes())}:${addZeros(date.getSeconds())}`;
+      return `${window.addZeros(date.getHours())
+      }:${window.addZeros(date.getMinutes())
+      }:${window.addZeros(date.getSeconds())}`;
     },
   },
 };
@@ -122,13 +156,34 @@ export default {
   .container {
     padding-top: 10px;
     overflow-y: scroll;
+    overflow-x: hidden;
     height: calc(100% - 50px);
   }
 
-  .log {
+  .start:hover,
+  .start.selected { box-shadow: #7676763b 0 0 5px 0 }
+
+  .start > .visible {
     display: flex;
     justify-content: space-between;
     padding: 10px 20px;
+    cursor: pointer;
+    transition-timing-function: ease;
+  }
+
+  .drop {
+    height: 100%;
+    opacity: 1;
+    padding: 15px;
+  }
+
+  .drop:not(.open) {
+    height: 0;
+    opacity: 0;
+    padding: 0;
+    font-size: 0;
+    transform: scale(.5);
+    pointer-events: none;
   }
 
   .left {
@@ -141,7 +196,7 @@ export default {
     font-size: 15px;
   }
 
-  .middled {
+  .column {
     display: flex;
     flex-direction: column;
     justify-content: center;

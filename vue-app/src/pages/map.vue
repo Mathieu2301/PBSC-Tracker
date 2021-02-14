@@ -111,9 +111,7 @@ export default {
 
             if (prob < window.config.minProb) return;
 
-            const speed = Math.round(
-              (realDistance * 36) / ((dockTimestamp - startTimestamp) / 1000),
-            ) / 10;
+            const timeS = Math.round((dockTimestamp - startTimestamp) / 1000);
 
             paths.push({
               startSID: startLog.sID,
@@ -127,7 +125,7 @@ export default {
               dockTimestamp,
               startTimestamp,
               diff: dockTimestamp - startTimestamp,
-              speed,
+              time: `${Math.floor(timeS / 60)}:${window.addZeros(timeS % 60)}`,
               prob,
             });
           });
@@ -161,7 +159,7 @@ export default {
             this.lines[logUID].bindPopup(`
               From: ${path.startS} (${path.startTime.split(' ')[1]})<br>
               To: ${path.dockS} (${path.dockTime.split(' ')[1]})<br>
-              Speed: ${path.speed} km/h<br>
+              Time: ${path.time}<br>
               Prob: ${path.prob * 100} %<br>
             `);
           });

@@ -1,7 +1,6 @@
 <?php
 $_CONFIG = [
-  'zone' => 46, // InstantSystem zone ID (46 is Valence)
-  'interval' => 30, // Minimum interval (in seconds) between two autofetches
+  'city' => 'valence', // PBSC city name (*.publicbikesystem.net)
   'timeZoneCorrect' => 'PT1H', // Timezone correction (if the PHP server isn't in the same zone as you)
 ];
 
@@ -23,12 +22,17 @@ function rq($rq, $cb) {
   if (trim($rq, '/') === $uri) rs($cb());
 }
 
-// -------- Auto fetch --------
+rq('/getStations', function() {
+  return getStations();
+});
 
-$lastFetch = file_get_contents('./lastFetch');
-$fetchedIDs = [];
+rq('/update', function() { // Auto handling
+  global $_CONFIG;
+  global $pdo;
+  global $fTime;
 
-if (!$lastFetch || $fTimestamp - $lastFetch > $_CONFIG['interval']) {
+  $fetchedIDs = [];
+
   $fStations = getBikes();
 
   foreach ($fStations as $sID => $fStation) {
@@ -45,14 +49,10 @@ if (!$lastFetch || $fTimestamp - $lastFetch > $_CONFIG['interval']) {
     } else $needUpdate = true;
 
     if ($needUpdate) {
-      $rq = $pdo->prepare('INSERT INTO libelo_updates (station, bikes, eBikes, mBikes, stands, status, time) VALUES (?, ?, ?, ?, ?, ?, ?)');
-      $rq->execute([
+      $pdo->prepare('INSERT INTO libelo_updates (station, eBikes, mBikes, time) VALUES (?, ?, ?, ?)')->execute([
         $sID,
-        $fStation['bikes'],
         $fStation['eBikes'],
         $fStation['mBikes'],
-        $fStation['stands'],
-        $fStation['status'],
         $fTime,
       ]);
 
@@ -60,13 +60,7 @@ if (!$lastFetch || $fTimestamp - $lastFetch > $_CONFIG['interval']) {
     }
   }
 
-  file_put_contents('./lastFetch', $fTimestamp);
-}
-
-// -----------
-
-rq('/getStations', function() {
-  return getStations();
+  return [ 'success' => true, 'fetchedIDs' => $fetchedIDs ];
 });
 
 rq('/getFullData', function() {
@@ -76,17 +70,16 @@ rq('/getFullData', function() {
   return $rq->fetchAll(PDO::FETCH_UNIQUE);
 });
 
-rq('/autoFetch', function() { // Cron task
-  global $fetchedIDs;
-  return [ 'fetchedIDs' => $fetchedIDs ];
-});
-
 rq('/lastFetch', function() {
-  global $lastFetch;
-  exit($lastFetch);
+  global $pdo;
+  global $_CONFIG;
+  $rq = $pdo->prepare('SELECT id as lastID, time as lastUpdate FROM libelo_updates ORDER BY time DESC');
+  $rq->execute();
+
+  return $rq->fetch();
 });
 
-function getLogs() {
+rq('getLogs', function() {
   global $pdo;
 
   $stationsNames = getStations();
@@ -103,43 +96,29 @@ function getLogs() {
 
     if (!$histData) continue;
 
-    $sName = $stationsNames[$data['station']]['name'];
-
     $eDiff = $data['eBikes'] - $histData['eBikes'];
     $mDiff = $data['mBikes'] - $histData['mBikes'];
 
-    $data['time'] = (new DateTime($data['time']))->format('Y-m-d H:i');
+    $data['time'] = (new DateTime($data['time']))->format('Y-m-d H:i:s');
 
     for ($i = 0; $i < abs($eDiff); $i++) array_push($logs, [
+      'UID'   => $data['station'].'_'.strtotime($data['time']).'_E',
       'sID'   => $data['station'],
-      'sName' => $sName,
       'time'  => $data['time'],
       'type'  => 'E',
       'diff'  => $eDiff,
-      'fDiff' => ($eDiff > 0 ? '+' : '-'),
     ]);
 
     for ($i = 0; $i < abs($mDiff); $i++) array_push($logs, [
+      'UID'   => $data['station'].'_'.strtotime($data['time']).'_M',
       'sID'   => $data['station'],
-      'sName' => $sName,
       'time'  => $data['time'],
       'type'  => 'M',
       'diff'  => $mDiff,
-      'fDiff' => ($mDiff > 0 ? '+' : '-'),
     ]);
   }
 
   return $logs;
-}
-
-rq('getLogs', function() {
-  return getLogs();
-});
-
-rq('getLogs/text', function() {
-  foreach (getLogs() as $log) {
-    echo '['.$log['time']."]: ".$log['fDiff']." [".$log['type']."] at ".$log['sName']." (".$log['sID'].")\n";
-  }
 });
 
 ?>

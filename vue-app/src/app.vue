@@ -1,7 +1,7 @@
 <template>
   <div>
     <mapEl :logs="logs" :stations="stations" :nowTime="nowTime"/>
-    <sideBar :logs="logs" :nowTime="nowTime"/>
+    <sideBar :logs="logs" :stations="stations" :nowTime="nowTime"/>
     <div class="bottomFixed">
       <input class="timeSlide" type="range" min="-120" max="0" v-model="timeControl">
     </div>
@@ -41,7 +41,7 @@ export default {
       this.logs = this.fetchedLogs.filter(
         (l) => this.nowTime >= new Date(l.time).getTime(),
       );
-    }, 100);
+    }, 1000);
   },
 };
 </script>
