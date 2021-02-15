@@ -17,7 +17,7 @@ Pour émettre des hypothèses sur les trajets on procède de la manière suivant
  - Pour chaque arrivée dans une station, on regarde la liste des départs qui précèdent cette arrivée.
  - On élimine les départs qui mettraient plus de temps que le trajet théorique le plus élevé
  	(Pour Valence, le trajet "Portes-lès-Valence -> Romans" a une durée théorique de 1h30)
- - Pour chaque potentielle station départ, on compare le temps passé avec le temps de trajet théorique calculé par Google Maps ou autre système.
+ - Pour chaque potentielle station départ, on compare le temps passé avec le temps de trajet théorique calculé par *GMaps Directions API*.
  - On trie les hypothèses (différence "réelle/théorique" la plus faible = probabilité plus élevée)
  - (Si l'hypothèse correspond à dire que la vitesse moyenne du cycliste était supérieure à 30km/h, on la considère directement fausse)
  - Les hypothèses de trajets cours sont prioritaires sur les trajets longs.
@@ -41,8 +41,8 @@ N'hésitez pas à créer une discussion [ici](https://github.com/Mathieu2301/PBS
 Vous pouvez consulter :
  - Les résultats des expériences : [libelotracker.vercel.app](https://libelotracker.vercel.app/)
  - La liste des stations Libélo : [/getStations](https://libelostats.usp-3.fr/getStations)
- - Les données stockées en brut : [/getFullData](https://libelostats.usp-3.fr/getFullData)
- - L'historique des opérations : [/getLogs](https://libelostats.usp-3.fr/getLogs)
+ - Les données stockées en brut : [/getRawData](https://libelostats.usp-3.fr/getRawData)
+ - Les données exploitables : [/getData](https://libelostats.usp-3.fr/getData)
 
 L'API PHP est hébergée sur [libelostats.usp-3.fr](https://libelostats.usp-3.fr/) et fonctionne avec le système [Libélo](https://www.vrd-mobilites.fr/velo/) de Valence.
-Le script "/update" est automatiquement exécuté dès qu'un changement est détexté par le script "updater.js" pour assurer le suivi précis des données.
+Le script "/update" est automatiquement exécuté dès qu'un changement est détecté par le script "updater.js" pour assurer le suivi précis des données.

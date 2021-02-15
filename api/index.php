@@ -63,13 +63,6 @@ rq('/update', function() { // Auto handling
   return [ 'success' => true, 'fetchedIDs' => $fetchedIDs ];
 });
 
-rq('/getFullData', function() {
-  global $pdo;
-  $rq = $pdo->prepare('SELECT * FROM libelo_updates ORDER BY time DESC');
-  $rq->execute();
-  return $rq->fetchAll(PDO::FETCH_UNIQUE);
-});
-
 rq('/lastFetch', function() {
   global $pdo;
   global $_CONFIG;
@@ -79,16 +72,21 @@ rq('/lastFetch', function() {
   return $rq->fetch();
 });
 
-rq('getLogs', function() {
+rq('/getRawData', function() {
+  global $pdo;
+  $rq = $pdo->prepare('SELECT * FROM libelo_updates ORDER BY time DESC');
+  $rq->execute();
+  return $rq->fetchAll(PDO::FETCH_UNIQUE);
+});
+
+rq('/getData', function() {
   global $pdo;
 
-  $stationsNames = getStations();
-
-  $rq = $pdo->prepare('SELECT * FROM libelo_updates ORDER BY id DESC');
+  $rq = $pdo->prepare('SELECT * FROM libelo_updates ORDER BY id DESC LIMIT 100');
   $rq->execute();
   $datas = $rq->fetchAll(PDO::FETCH_UNIQUE);
 
-  $logs = [];
+  $operations = [];
   foreach ($datas as $dID => $data) {
     $rqHist = $pdo->prepare('SELECT * FROM libelo_updates WHERE station = ? AND id < ? ORDER BY id DESC');
     $rqHist->execute([ $data['station'], $dID ]);
@@ -101,7 +99,7 @@ rq('getLogs', function() {
 
     $data['time'] = (new DateTime($data['time']))->format('Y-m-d H:i:s');
 
-    for ($i = 0; $i < abs($eDiff); $i++) array_push($logs, [
+    for ($i = 0; $i < abs($eDiff); $i++) array_push($operations, [
       'UID'   => $data['station'].'_'.strtotime($data['time']).'_E',
       'sID'   => $data['station'],
       'time'  => $data['time'],
@@ -109,7 +107,7 @@ rq('getLogs', function() {
       'diff'  => $eDiff,
     ]);
 
-    for ($i = 0; $i < abs($mDiff); $i++) array_push($logs, [
+    for ($i = 0; $i < abs($mDiff); $i++) array_push($operations, [
       'UID'   => $data['station'].'_'.strtotime($data['time']).'_M',
       'sID'   => $data['station'],
       'time'  => $data['time'],
@@ -118,7 +116,18 @@ rq('getLogs', function() {
     ]);
   }
 
-  return $logs;
+  $rqStations = $pdo->prepare('SELECT station, mBikes as "0", eBikes as "1" FROM libelo_updates GROUP BY station ORDER BY id DESC');
+  $rqStations->execute();
+  $stations = $rqStations->fetchAll(PDO::FETCH_UNIQUE);
+
+  return [
+    'stations' => $stations,
+    'operations' => $operations,
+  ];
+});
+
+rq('/getPaths', function() {
+  return json_decode(file_get_contents('./paths.json'));
 });
 
 ?>

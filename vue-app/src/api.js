@@ -5,10 +5,9 @@ let handler = () => {};
 let lastID = 0;
 
 async function fetch() {
-  const newLastID = await $('lastFetch').lastID;
+  const newLastID = (await $('lastFetch')).lastID;
   if (newLastID !== lastID) {
-    handler(await $('getLogs'));
-    console.log('Handle');
+    handler(await $('getData'));
     lastID = newLastID;
   }
 }
@@ -23,5 +22,6 @@ export default {
     fetch();
   },
 
-  getStations: () => $('getStations'),
+  getStations: () => $('getStations', 'stations'),
+  getPaths: () => $('getPaths', 'paths'),
 };
