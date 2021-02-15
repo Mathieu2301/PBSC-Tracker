@@ -1,6 +1,7 @@
 <?php
 $_CONFIG = [
   'city' => 'valence', // PBSC city name (*.publicbikesystem.net)
+  'minInterval' => 7, // Minimum interval between two updates (seconds)
   'timeZoneCorrect' => 'PT1H', // Timezone correction (if the PHP server isn't in the same zone as you)
 ];
 
@@ -17,6 +18,7 @@ function rs($rs) {
   if ($rs) exit(json_encode($rs));
   else exit();
 }
+
 function rq($rq, $cb) {
   $uri = trim(explode('?', $_SERVER['REQUEST_URI'])[0], '/');
   if (trim($rq, '/') === $uri) rs($cb());
@@ -26,17 +28,21 @@ rq('/getStations', function() {
   return getStations();
 });
 
-rq('/update', function() { // Auto handling
+$update = function() {
   global $_CONFIG;
   global $pdo;
   global $fTime;
+
+  $lastUpdate = file_get_contents('./lastUpdate');
+  if ($lastUpdate && $lastUpdate + $_CONFIG['minInterval'] > time()) return [ 'success' => true, 'fetched' => false ];
+  file_put_contents('./lastUpdate', time());
 
   $fetchedIDs = [];
 
   $fStations = getBikes();
 
   foreach ($fStations as $sID => $fStation) {
-    $rq = $pdo->prepare('SELECT * FROM libelo_updates WHERE station = ? ORDER BY time DESC');
+    $rq = $pdo->prepare('SELECT * FROM pbsc_updates WHERE station = ? ORDER BY time DESC');
     $rq->execute([ $sID ]);
     $dbStation = $rq->fetch(PDO::FETCH_UNIQUE);
 
@@ -49,7 +55,7 @@ rq('/update', function() { // Auto handling
     } else $needUpdate = true;
 
     if ($needUpdate) {
-      $pdo->prepare('INSERT INTO libelo_updates (station, eBikes, mBikes, time) VALUES (?, ?, ?, ?)')->execute([
+      $pdo->prepare('INSERT INTO pbsc_updates (station, eBikes, mBikes, time) VALUES (?, ?, ?, ?)')->execute([
         $sID,
         $fStation['eBikes'],
         $fStation['mBikes'],
@@ -61,12 +67,14 @@ rq('/update', function() { // Auto handling
   }
 
   return [ 'success' => true, 'fetchedIDs' => $fetchedIDs ];
-});
+};
+
+rq('/update', $update); // Auto handling
 
 rq('/lastFetch', function() {
   global $pdo;
   global $_CONFIG;
-  $rq = $pdo->prepare('SELECT id as lastID, time as lastUpdate FROM libelo_updates ORDER BY time DESC');
+  $rq = $pdo->prepare('SELECT id as lastID, time as lastUpdate FROM pbsc_updates ORDER BY time DESC');
   $rq->execute();
 
   return $rq->fetch();
@@ -74,21 +82,22 @@ rq('/lastFetch', function() {
 
 rq('/getRawData', function() {
   global $pdo;
-  $rq = $pdo->prepare('SELECT * FROM libelo_updates ORDER BY time DESC');
+  $rq = $pdo->prepare('SELECT * FROM pbsc_updates ORDER BY time DESC');
   $rq->execute();
   return $rq->fetchAll(PDO::FETCH_UNIQUE);
 });
 
 rq('/getData', function() {
   global $pdo;
+  global $update;
 
-  $rq = $pdo->prepare('SELECT * FROM libelo_updates ORDER BY id DESC LIMIT 100');
+  $rq = $pdo->prepare('SELECT * FROM pbsc_updates ORDER BY id DESC LIMIT 100');
   $rq->execute();
   $datas = $rq->fetchAll(PDO::FETCH_UNIQUE);
 
   $operations = [];
   foreach ($datas as $dID => $data) {
-    $rqHist = $pdo->prepare('SELECT * FROM libelo_updates WHERE station = ? AND id < ? ORDER BY id DESC');
+    $rqHist = $pdo->prepare('SELECT * FROM pbsc_updates WHERE station = ? AND id < ? ORDER BY id DESC');
     $rqHist->execute([ $data['station'], $dID ]);
     $histData = $rqHist->fetch();
 
@@ -116,13 +125,17 @@ rq('/getData', function() {
     ]);
   }
 
-  $rqStations = $pdo->prepare('SELECT station, mBikes as "0", eBikes as "1" FROM libelo_updates GROUP BY station ORDER BY id DESC');
-  $rqStations->execute();
-  $stations = $rqStations->fetchAll(PDO::FETCH_UNIQUE);
+  $update();
+
+  $stations = [];
+
+  foreach (getBikes() as $sID => $bikes) {
+    $stations[$sID] = [ $bikes['mBikes'], $bikes['eBikes'] ];
+  }
 
   return [
-    'stations' => $stations,
     'operations' => $operations,
+    'stations' => $stations,
   ];
 });
 

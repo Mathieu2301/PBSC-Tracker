@@ -36,7 +36,6 @@ export default {
   data: () => ({
     stations: {},
     stationsBikes: {},
-    fetchedLogs: null,
     logs: {},
 
     starts: {},
@@ -51,18 +50,20 @@ export default {
     this.stations = await window.api.getStations();
 
     window.api.onFetch((data) => {
-      this.fetchedLogs = data.operations;
+      this.logs = data.operations;
       this.stationsBikes = data.stations;
+      this.computePaths();
     });
 
     setInterval(() => {
       this.nowTime = parseInt(Date.now() + (this.timeControl * 60 * 1000), 10);
-      if (!this.fetchedLogs) return;
-      this.logs = this.fetchedLogs.filter(
-        (l) => this.nowTime >= new Date(l.time).getTime(),
-      );
-      this.computePaths();
-    }, 1000);
+    }, 300);
+  },
+
+  watch: {
+    timeControl() {
+      this.nowTime = parseInt(Date.now() + (this.timeControl * 60 * 1000), 10);
+    },
   },
 
   methods: {
@@ -77,14 +78,16 @@ export default {
     computePaths() {
       this.logs.filter((s) => s.diff < 0).forEach((start) => {
         if (!this.starts[start.UID]) {
-          this.starts[start.UID] = {
-            sID: start.sID,
-            sName: this.stations[start.sID].name,
-            time: start.time,
-            type: start.type,
-            ends: {},
+          this.starts = {
+            ...this.starts,
+            [start.UID]: {
+              sID: start.sID,
+              sName: this.stations[start.sID].name,
+              time: start.time,
+              type: start.type,
+              ends: {},
+            },
           };
-          return;
         }
 
         this.logs.filter((e) => (
@@ -95,12 +98,29 @@ export default {
         )).forEach((end) => {
           if (this.starts[start.UID].ends[end.sID]) return;
           const duration = (new Date(end.time).getTime() - new Date(start.time).getTime()) / 1000;
-          const realPath = window.paths[`${start.sID}>${end.sID}`] ?? [0, 0, 0, 0];
+          const rP = window.paths[`${start.sID}>${end.sID}`] ?? [0, 0, 0, 0];
 
-          const root = (duration > realPath[3] ? 20 : 2);
-          let prob = 1 / ((((duration - realPath[3]) + 1) ** 2) ** (1 / root));
+          let pathDistance = Math.round((rP[0] + rP[2]) / 2) ?? 0;
+          let pathDuration = Math.round(rP[3] * (rP[0] / Math.max(rP[0], rP[2]))) ?? 0;
+          let speed = (Math.round((pathDistance / duration) * 36) / 10) ?? 0;
+
+          if (!Number.isFinite(pathDistance)) pathDistance = 0;
+          if (!Number.isFinite(pathDuration)) pathDuration = 0;
+          if (!Number.isFinite(speed)) speed = 0;
+
+          if (speed > 30) return;
+
+          let targetSpeed = window.config.bikeAvgSpeed;
+          if (start.type === 'E') {
+            pathDuration = Math.round(pathDuration * 0.9);
+            targetSpeed = Math.round(targetSpeed * 1.1);
+          }
+
+          let prob = 1 - (Math.abs(targetSpeed - speed) / targetSpeed);
 
           if (duration < 15 && start.sID === end.sID) prob = 1;
+          if (prob > 1) prob = 1;
+          if (prob <= 0) return;
 
           if (!this.usedEnds[end.UID]) this.usedEnds[end.UID] = 0;
           this.usedEnds[end.UID] += prob;
@@ -110,11 +130,11 @@ export default {
             sID: end.sID,
             sName: this.stations[end.sID].name,
             time: duration,
-            realDuration: realPath[3],
-            realDistance: realPath[2],
-            speed: Math.round((realPath[2] / duration) * 36) / 10,
-            percent: Math.round(prob * 10000) / 100,
+            realDuration: pathDuration,
+            realDistance: pathDistance,
+            speed,
             prob,
+            percent: Math.round(prob * 10000) / 100,
           };
           this.starts[start.UID].results = Object.keys(this.starts[start.UID].ends).length;
         });

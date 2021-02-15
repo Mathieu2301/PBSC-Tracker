@@ -8,15 +8,23 @@
       <div class="topTitle">{{ getHour() }}</div>
       <div class="container">
         <div class="start"
-          v-for="(start, UID) in starts" :key="UID"
-          :class="{ selected: selectedStart === UID }"
-          @click="selectStart(UID)">
+          v-for="start in startsList" :key="start.UID"
+          :class="{
+            selected: selectedStart === start.UID,
+            hide: new Date(start.time).getTime() > nowTime,
+          }"
+          @click="selectStart(start.UID)">
           <div class="visible">
             <div class="left">
               <div>{{ start.sName }}</div>
               <div class="small">{{ start.time }}</div>
             </div>
-            <div class="column small" v-if="!start.results">
+            <div class="column small" v-if="new Date(start.time).getTime() > nowTime">
+              Not gone
+            </div>
+            <div class="column small" v-else-if="(
+              !start.results
+            )">
               <div>{{ calcDistance(start.time) }}</div>
               <div>{{ calcTime(start.time) }}</div>
             </div>
@@ -31,7 +39,7 @@
               </svg>
             </div>
           </div>
-          <div class="drop" :class="{ open: selectedStart === UID }">
+          <div class="drop" :class="{ open: selectedStart === start.UID }">
             <div class="end" v-for="end in sort(start.ends)" :key="end.sID">
               <div class="list">
                 <div class="left">
@@ -80,7 +88,22 @@ export default {
 
   data: () => ({
     hideSidebar: true,
+    startsList: {},
   }),
+
+  watch: {
+    starts() {
+      this.startsList = [];
+
+      Object.keys(this.starts).forEach((UID) => {
+        this.startsList.push({ UID, ...this.starts[UID] });
+      });
+
+      this.startsList = this.startsList.sort((a, b) => (
+        new Date(a.time).getTime() < new Date(b.time).getTime() ? 1 : -1
+      ));
+    },
+  },
 
   methods: {
     sort(s) {
@@ -94,7 +117,7 @@ export default {
 
     formatTime(sec) {
       return (sec < 3600)
-        ? `${Math.floor(sec / 60)}:${window.addZeros(sec % 60)} s`
+        ? `${Math.floor(sec / 60)}:${window.addZeros(Math.round(sec) % 60)} s`
         : `${Math.floor(sec / 3600)}h${window.addZeros(Math.round((sec / 60) % 60))}`;
     },
 
@@ -176,8 +199,9 @@ export default {
     height: calc(100% - 50px);
   }
 
-  .start:hover,
-  .start.selected { box-shadow: #7676763b 0 0 5px 0 }
+  .start:not(.hide):hover,
+  .start:not(.hide).selected { box-shadow: #7676763b 0 0 5px 0 }
+  .start.hide { opacity: 0.3 }
 
   .visible, .list {
     display: grid;
@@ -236,7 +260,7 @@ export default {
   .barContainer > .bar {
     height: 4px;
     border-radius: 10px;
-    background-color: #0a7ffdb3;
+    background-color: #2aa21994;
   }
 
   svg {
