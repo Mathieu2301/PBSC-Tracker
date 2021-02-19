@@ -1,7 +1,6 @@
 <?php
 $_CONFIG = [
   'city' => 'valence', // PBSC city name (*.publicbikesystem.net)
-  'minInterval' => 7, // Minimum interval between two updates (seconds)
   'timeZoneCorrect' => 'PT1H', // Timezone correction (if the PHP server isn't in the same zone as you)
 ];
 
@@ -33,15 +32,15 @@ $update = function() {
   global $pdo;
   global $fTime;
 
-  $lastUpdate = file_get_contents('./lastUpdate');
-  if ($lastUpdate && $lastUpdate + $_CONFIG['minInterval'] > time()) return [ 'success' => true, 'fetched' => false ];
-  file_put_contents('./lastUpdate', time());
-
   $fetchedIDs = [];
 
   $fStations = getBikes();
 
-  foreach ($fStations as $sID => $fStation) {
+  $lastUpdate = file_get_contents('./lastUpdate');
+  if ($lastUpdate >= $fStations['lastUpdate']) return [ 'success' => true, 'updated' => false ];
+  file_put_contents('./lastUpdate', time());
+
+  foreach ($fStations['stations'] as $sID => $fStation) {
     $rq = $pdo->prepare('SELECT * FROM pbsc_updates WHERE station = ? ORDER BY time DESC');
     $rq->execute([ $sID ]);
     $dbStation = $rq->fetch(PDO::FETCH_UNIQUE);
@@ -129,7 +128,7 @@ rq('/getData', function() {
 
   $stations = [];
 
-  foreach (getBikes() as $sID => $bikes) {
+  foreach (getBikes()['stations'] as $sID => $bikes) {
     $stations[$sID] = [ $bikes['mBikes'], $bikes['eBikes'] ];
   }
 

@@ -1,4 +1,6 @@
 <?php
+$_REQUEST = json_decode(file_get_contents('php://input'), true);
+
 $fTime = (new DateTime())
   ->add(new DateInterval($_CONFIG['timeZoneCorrect']))
   ->format('Y-m-d H:i:s');
@@ -34,18 +36,27 @@ function getBikes() {
   global $baseUrl;
   global $fBikes;
 
-  if (!$fBikes) $fBikes = json_decode(file_get_contents("$baseUrl/station_status"), true)['data']['stations'];
+  if (!$fBikes) {
+    $ch = curl_init("$baseUrl/station_status");
+    if ($_REQUEST['cookie']) curl_setopt($ch, CURLOPT_COOKIE, $_REQUEST['cookie']);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    $fBikes = json_decode(curl_exec($ch), true);
+    curl_close($ch);
+  }
 
   $stations = [];
 
-  foreach ($fBikes as $key => $s) {
+  foreach ($fBikes['data']['stations'] as $key => $s) {
     $stations[$s['station_id']] = [
       'eBikes' => $s['num_bikes_available_types']['ebike'],
       'mBikes' => $s['num_bikes_available_types']['mechanical'],
     ];
   }
 
-  return $stations;
+  return [
+    'lastUpdate' => $fBikes['last_updated'],
+    'stations' => $stations,
+  ];
 }
 
 ?>
