@@ -36,7 +36,7 @@ setInterval(() => {
             e: newS.e - stations[s.station_id].e,
             m: newS.m - stations[s.station_id].m,
           });
-          https.request('https://libelostats.usp-3.fr/update/', {
+          https.request('https://libelostats.apis.colmon.fr/update/', {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
