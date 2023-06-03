@@ -4,7 +4,7 @@ on:
     branches: ['main']
   workflow_dispatch:
 jobs:
-  publish-to-ghcr-api:
+  process-api:
     runs-on: ubuntu-latest
     steps:
     - name: Set up QEMU
@@ -27,7 +27,7 @@ jobs:
         tags: ghcr.io/mathieu2301/pbsctracker-api:latest
         platforms: linux/amd64,linux/arm64
 
-  publish-to-ghcr-updater:
+  process-updater:
     runs-on: ubuntu-latest
     steps:
     - name: Set up QEMU
