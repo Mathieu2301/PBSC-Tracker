@@ -1,17 +1,35 @@
+require('dotenv').config();
 const https = require('https');
 
-const url = 'https://valencefr.publicbikesystem.net/ube/gbfs/v1/en/station_status';
+if (!process.env.TRACKER_API) {
+  console.error('TRACKER_API not set');
+  process.exit(1);
+}
 
+if (!process.env.CITY) {
+  console.error('CITY not set');
+  process.exit(1);
+}
+
+const requestLib = (
+  process.env.TRACKER_API.startsWith('https')
+    ? https
+    : require('http')
+);
+
+const { TRACKER_API, CITY, UPDATE_INTERVAL } = process.env;
 const stations = {};
-
 const date = () => new Date().toLocaleString();
 
+console.log('Using TRACKER_API:', TRACKER_API);
+console.log('Using CITY:', CITY);
+console.log('Using UPDATE_INTERVAL:', Number(UPDATE_INTERVAL) || 1000);
 console.log('SmartUpdater running', date());
 
 let lastUpdate = 0;
 
 setInterval(() => {
-  https.get(url, (res) => {
+  https.get(`https://${CITY}.publicbikesystem.net/ube/gbfs/v1/en/station_status`, (res) => {
     let rs = '';
 
     res.on('data', (d) => rs += d);
@@ -21,7 +39,7 @@ setInterval(() => {
       if (lastUpdate >= rs.last_updated) return;
       lastUpdate = rs.last_updated;
 
-      const data = JSON.stringify({ cookie: res.headers['set-cookie'].map((c) => c.split(';')[0]).join('; ') });
+      const data = JSON.stringify({ cookie: res.headers['set-cookie']?.map((c) => c.split(';')[0]).join('; ') });
 
       rs.data.stations.forEach((s) => {
         const newS = {
@@ -36,7 +54,7 @@ setInterval(() => {
             e: newS.e - stations[s.station_id].e,
             m: newS.m - stations[s.station_id].m,
           });
-          https.request('https://libelostats.apis.colmon.fr/update/', {
+          requestLib.request(`${TRACKER_API}/update`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -56,4 +74,4 @@ setInterval(() => {
       });
     });
   }).end();
-}, 1000);
+}, Number(process.env.UPDATE_INTERVAL) || 1000);

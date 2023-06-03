@@ -1,3 +1,7 @@
-.vscode/
-mysql.php
+node_modules/
+.vscode
 .vercel
+
+.env
+*.log
+lastUpdate

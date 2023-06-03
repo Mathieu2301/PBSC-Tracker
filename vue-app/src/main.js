@@ -5,7 +5,11 @@ import api from './api';
 window.api = api;
 
 window.config = {
-  server: 'libelostats.apis.colmon.fr',
+  server: (
+    process.env.NODE_ENV !== 'development'
+      ? 'https://libelostats.apis.colmon.fr'
+      : 'http://localhost:3000'
+  ),
   mapCenter: [44.93, 4.9], // Valence
 
   distanceCalc: (time, start) => Math.round(((start - time) / 1000) * (250 / 60)),

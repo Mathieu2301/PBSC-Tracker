@@ -1,9 +1,4 @@
 <?php
-$_CONFIG = [
-  'city' => 'valence', // PBSC city name (*.publicbikesystem.net)
-  'timeZoneCorrect' => 'PT1H', // Timezone correction (if the PHP server isn't in the same zone as you)
-];
-
 include './mysql.php';
 include './fetch.php';
 
@@ -11,16 +6,18 @@ header('Access-Control-Allow-Origin: *');
 header('Content-Type: application/json; charset=utf-8');
 ini_set('serialize_precision', 14);
 
-if ($_SERVER['REQUEST_URI'] === '/') header('Location: https://github.com/Mathieu2301/Velib-Tracker/');
+if ($_SERVER['REQUEST_URI'] === '/') header('Location: https://github.com/Mathieu2301/PBSC-Tracker/');
 
 function rs($rs) {
   if ($rs) exit(json_encode($rs));
   else exit();
 }
 
+$URI = trim(explode('?', $_SERVER['REQUEST_URI'])[0], '/');
+
 function rq($rq, $cb) {
-  $uri = trim(explode('?', $_SERVER['REQUEST_URI'])[0], '/');
-  if (trim($rq, '/') === $uri) rs($cb());
+  global $URI;
+  if (trim($rq, '/') === $URI) rs($cb());
 }
 
 rq('/getStations', function() {
@@ -28,7 +25,6 @@ rq('/getStations', function() {
 });
 
 $update = function() {
-  global $_CONFIG;
   global $pdo;
   global $fTime;
 
@@ -72,7 +68,6 @@ rq('/update', $update); // Auto handling
 
 rq('/lastFetch', function() {
   global $pdo;
-  global $_CONFIG;
   $rq = $pdo->prepare('SELECT id as lastID, time as lastUpdate FROM pbsc_updates ORDER BY time DESC');
   $rq->execute();
 
@@ -108,19 +103,19 @@ rq('/getData', function() {
     $data['time'] = (new DateTime($data['time']))->format('Y-m-d H:i:s');
 
     for ($i = 0; $i < abs($eDiff); $i++) array_push($operations, [
-      'UID'   => $data['station'].'_'.strtotime($data['time']).'_E',
-      'sID'   => $data['station'],
-      'time'  => $data['time'],
-      'type'  => 'E',
-      'diff'  => $eDiff,
+      'UID'  => $data['station'] . '_' . strtotime($data['time']) . '_E',
+      'sID'  => $data['station'],
+      'time' => $data['time'],
+      'type' => 'E',
+      'diff' => $eDiff,
     ]);
 
     for ($i = 0; $i < abs($mDiff); $i++) array_push($operations, [
-      'UID'   => $data['station'].'_'.strtotime($data['time']).'_M',
-      'sID'   => $data['station'],
-      'time'  => $data['time'],
-      'type'  => 'M',
-      'diff'  => $mDiff,
+      'UID'  => $data['station'] . '_' . strtotime($data['time']) . '_M',
+      'sID'  => $data['station'],
+      'time' => $data['time'],
+      'type' => 'M',
+      'diff' => $mDiff,
     ]);
   }
 
@@ -141,5 +136,4 @@ rq('/getData', function() {
 rq('/getPaths', function() {
   return json_decode(file_get_contents('./paths.json'));
 });
-
 ?>

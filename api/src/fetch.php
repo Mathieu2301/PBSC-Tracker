@@ -2,10 +2,10 @@
 $_REQUEST = json_decode(file_get_contents('php://input'), true);
 
 $fTime = (new DateTime())
-  ->add(new DateInterval($_CONFIG['timeZoneCorrect']))
+  ->add(new DateInterval($_ENV['TIMEZONE_CORRECTION']))
   ->format('Y-m-d H:i:s');
 
-$city = $_CONFIG['city'];
+$city = $_ENV['CITY'];
 $baseUrl = "https://$city.publicbikesystem.net/ube/gbfs/v1/en";
 
 $fStations = null;
@@ -58,5 +58,4 @@ function getBikes() {
     'stations' => $stations,
   ];
 }
-
 ?>
